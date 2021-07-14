@@ -8,11 +8,13 @@ import pandas as pd
 from tqdm import tqdm
 
 
-def get_mean(group, j, group_name, df_all):
+def get_mean(group, group_name, df_all):
     group = group[group.columns[1:-6]]
-            
-    mean_df = pd.DataFrame([group.astype(int).mean()])
-    mean_df['group'] = group_name
+    try:
+        mean_df = pd.DataFrame([group.astype(int).median().astype(int)])
+    except: 
+        import pdb;pdb.set_trace()
+    mean_df['index'] = group_name
     df_all = pd.concat([df_all, mean_df])
 
     group_name += 1
@@ -22,16 +24,17 @@ def get_mean(group, j, group_name, df_all):
 
 def compute_corrected_mean(column):
     try: 
-        return sum(column) / len(column[column != 0])
+        return int(column[column != 0].median())
+        # return sum(column) / len(column[column != 0])
     except: 
         return 0
 
 
-def get_mean_corrected(group, j, group_name, df_all):
+def get_mean_corrected(group, group_name, df_all):
     group = group[group.columns[1:-6]].astype(int)
     
     mean_df = pd.DataFrame([group.apply(compute_corrected_mean, axis=0)])
-    mean_df['group'] = group_name
+    mean_df['index'] = group_name
     df_all = pd.concat([df_all, mean_df])
 
     group_name += 1
@@ -61,30 +64,42 @@ def main(umi_counts, gene_metadata, output, mean_type):
     gene_merge = pd.merge(
         umis, gene_info, right_on=['Gene name'], left_on=['index'], how='inner'
     )
-
+    import pdb;pdb.set_trace()
+    labels = umis.iloc[0:2]
     group_name = 0; df_all = pd.DataFrame()
     for i, df in tqdm(gene_merge.groupby('Chromosome/scaffold name')):
-        for j in tqdm(range(25, len(df), 25)):
-            group = df[j-25:j]
-
+        print(df.shape)
+        if df.shape[0] <= 25: 
+            group = df.copy()
             if mean_type == 'mean':
-                df_all, group_name = get_mean(group, j, group_name, df_all)
+                df_all, group_name = get_mean(group, group_name, df_all)
             else:
-                df_all, group_name = get_mean_corrected(group, j, group_name, df_all)
+                df_all, group_name = get_mean_corrected(group, group_name, df_all)
 
-        group = df[j: len(df)]
-        if mean_type == 'mean':
-            df_all, group_name = get_mean(group, j, group_name, df_all)
         else:
-            df_all, group_name = get_mean_corrected(group, j, group_name, df_all)
-    
+            for j in tqdm(range(25, len(df), 25)):
+                group = df[j-25:j]
+                
+                if mean_type == 'mean':
+                    df_all, group_name = get_mean(group, group_name, df_all)
+                else:
+                    df_all, group_name = get_mean_corrected(group, group_name, df_all)
 
+
+            group = df[j: len(df)]
+            
+            if mean_type == 'mean':
+                df_all, group_name = get_mean(group, group_name, df_all)
+            else:
+                df_all, group_name = get_mean_corrected(group, group_name, df_all)
+    
+    df_all = pd.concat([labels, df_all], sort=False)
     if mean_type == 'mean':
-        df_all.to_csv(os.path.join(output, 'mean_data.tsv'), sep='\t', index=None)
+        df_all.to_csv(os.path.join(output, 'median_data.tsv'), sep='\t', index=None)
     
     else:
         df_all.to_csv(
-            os.path.join(output, 'mean_data_corrected.tsv'), sep='\t', index=None)
+            os.path.join(output, 'median_data_corrected.tsv'), sep='\t', index=None)
     
 
 if __name__ == '__main__':
