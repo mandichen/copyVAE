@@ -10,6 +10,7 @@ from scipy import stats
 import matplotlib.pylab as plt
 from collections import Counter
 from matplotlib.patches import Ellipse
+from matplotlib.ticker import FormatStrFormatter
 
 from sklearn.metrics import accuracy_score
 from sklearn.mixture import GaussianMixture
@@ -85,6 +86,67 @@ def plot_BIC(cluster, output, label):
     plt.close()
 
 
+def plot_accuracies(df, output):
+    import pdb;pdb.set_trace()
+    fig, (ax, ax2) = plt.subplots(
+        2, 1, sharex=True, figsize=(5, 5), facecolor='white', 
+        gridspec_kw={'height_ratios':[7,1]})
+
+    ax.set_ylim(.65, 1.) 
+    ax2.set_ylim(0, .12)
+
+    sns.barplot(
+        x=1, y=0, hue=2, data=df, ax=ax, palette=['#08519c', '#f03b20']
+    )
+    sns.barplot(
+        x=1, y=0, hue=2, data=df, ax=ax2, palette=['#08519c', '#f03b20']
+    )
+
+    custom_lines = []
+    for el in [('copyVAE', '#08519c'), ('copykat', '#f03b20')]:
+        custom_lines.append(
+                plt.plot([],[], marker="o", ms=7, ls="", mec='black', 
+                mew=0, color=el[1], label=el[0])[0] 
+            )
+
+    ax.set_ylabel("Performance", fontsize=12)
+    ax2.set_ylabel("", fontsize=12)
+    ax.set_ylabel("", fontsize=12)
+    ax2.set_xlabel("", fontsize=12)
+    # plt.xticks(rotation=0)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_visible(False)
+    ax2.spines['top'].set_visible(False)
+    ax2.spines['right'].set_visible(False)
+    ax.tick_params(labeltop=False)  # don't put tick labels at the top
+    ax.tick_params(bottom = False)
+    ax.tick_params(labelbottom = False)
+
+    ax.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    ax2.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
+    
+    ax.get_xaxis().set_visible(False)
+
+    ax.legend(
+        bbox_to_anchor=(0., 1.2, 1., .102),
+        handles=custom_lines, loc='upper center', 
+        facecolor='white', ncol=2, fontsize=8, frameon=False
+    )
+
+    d = .01  # how big to make the diagonal lines in axes coordinates
+    # arguments to pass to plot, just so we don't keep repeating them
+    kwargs = dict(transform=ax.transAxes, color='k', clip_on=False)
+    ax.plot((-d, +d), (-d, +d), **kwargs)  
+
+    ax2.get_legend().remove()
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(output, 'cluster_accuracy_comparisons.pdf'))
+    plt.close()
+
+
 @click.command(short_help='script for clustering the latent space')
 @click.option(
     '-da', '--data', default='', help='copy number data'
@@ -126,6 +188,27 @@ def main(data, data_copykat, expression_data, output):
     plot_BIC(cluster_0, output, '0')
     plot_BIC(cluster_1, output, '1')
     
+    exp_data = pd.read_csv(expression_data, sep='\t')
+
+    exp_clean = exp_data.drop(['Unnamed: 0', 'cluster.pred'], axis=1).values
+    exp_0 = exp_clean[np.argwhere(yhat == 0).flatten()]
+    exp_1 = exp_clean[np.argwhere(yhat == 1).flatten()]
+
+
+    if exp_1.mean(axis=1).std() > exp_0.mean(axis=1).std():
+        tum_clust = cluster_1; tum_exp = exp_1
+        nor_clust = cluster_0; nor_exp = exp_0
+    else:
+        tum_clust = cluster_0; tum_exp = exp_0
+        nor_clust = cluster_1; nor_exp = exp_1
+    
+    df_to_plot = pd.DataFrame(
+        [[acc_vae, v_mes_vae, acc_ck, v_mes_ck], 
+        ['Accuracy', 'V-measure', 'Accuracy', 'V-measure'], 
+        ['copyVAE', 'copyVAE', 'copykat', 'copykat']]).T
+
+    plot_accuracies(df_to_plot, output)
+
     
 
 
