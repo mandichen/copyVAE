@@ -57,19 +57,33 @@ def _cluster_with_kmeans(data_in, k=None, metric='euclidean'):
     return [i[0] for i in cell_clusters], best_clustering.labels_
 
 
-def draw_umap(adata, feature, file_name):
+def get_GMM(X, gt):
+    # define the model
+    model = GaussianMixture(n_components=2, n_init=5, max_iter=100000)
+    # fit the model
+    model.fit(X)
+    # assign a cluster to each example
+    yhat = model.predict(X)
 
-    sc.pp.neighbors(adata, use_rep=feature)
-    sc.tl.umap(adata, min_dist=0.3)
-    sc.pl.umap(
-                adata,
-                color=["cell_type"],
-                frameon=False,
-                save='{}.png'.format(file_name)
-                )
+    acc_vae = accuracy_score (yhat, gt)
+    v_mes_vae = v_measure_score(yhat, gt)
 
-    return None
-    
+    return model, yhat, acc_vae, v_mes_vae
+
+
+
+def plot_BIC(cluster, output, label):
+    n_components = np.arange(1,10)
+    models = [GaussianMixture(n, covariance_type='full', random_state=0, 
+        n_init=5, max_iter=1000).fit(cluster) for n in n_components]
+
+    plt.plot(n_components, [m.bic(cluster) for m in models], label='BIC')
+    plt.legend(loc='best')
+    plt.xlabel('n_components')
+    plt.tight_layout()
+    plt.savefig(os.path.join(output, 'cluster_{}.pdf'.format(label)))
+    plt.close()
+
 
 @click.command(short_help='script for clustering the latent space')
 @click.option(
@@ -79,22 +93,18 @@ def draw_umap(adata, feature, file_name):
     '-dk', '--data_copykat', default='', help='Results form copykat'
 )
 @click.option(
+    '-ed', '--expression_data', default='', help='input data to the VAE'
+)
+@click.option(
     '-o', '--output', default='', help='output folder'
 )
-def main(data, data_copykat, output):
-    # from julia.api import Julia
-    # jl = Julia(compiled_modules=False)
-    # from dpmmpython.priors import niw
-    # from dpmmpython.dpmmwrapper import DPMMPython
-    # labels, clusters ,sub_labels= DPMMPython.fit(
-    #     X.T, 10000, prior = prior, verbose=False)
-    
+def main(data, data_copykat, expression_data, output):
+
     X = np.load(data)
     normal = np.ones(379)
     tumor = np.zeros(1480 - 379)
     gt = np.concatenate([normal, tumor])
 
-    tumor_data = X[379:]
 
     if data_copykat:
         copykat = pd.read_csv(data_copykat, sep='\t')
@@ -103,50 +113,22 @@ def main(data, data_copykat, output):
 
         acc_ck = accuracy_score (copykat_pred, cluster_pred)
         v_mes_ck = v_measure_score(copykat_pred, cluster_pred)
-        # import pdb;pdb.set_trace()
-
-    # prior = niw(1, np.zeros(10), 20, np.eye(10))
     
-    
-    # aa, labels = _cluster_with_kmeans(X)
-    # aa_2, labels_2 = _cluster_with_kmeans(X, k=2)
 
-
-    # gaussian mixture clustering
-    # define the model
-    model = GaussianMixture(n_components=2, n_init=5, max_iter=100000)
-    # fit the model
-    model.fit(X)
-    # assign a cluster to each example
-    yhat = model.predict(X)
-    acc_vae = accuracy_score (yhat, gt)
-    v_mes_vae = v_measure_score(yhat, gt)
+    model, yhat, acc_vae, v_mes_vae = get_GMM(X, gt)
     print(acc_ck, v_mes_ck)
     print(acc_vae, v_mes_vae)
 
-    import pdb;pdb.set_trace()  
+    cluster_0 = X[np.argwhere(yhat == 0).flatten()]
+    cluster_1 = X[np.argwhere(yhat == 1).flatten()]
+    print(cluster_0.shape, cluster_1.shape)
 
-    tumor_cells = X[np.argwhere(yhat == 0).flatten()]
-    normal_cells = X[np.argwhere(yhat == 1).flatten()]
-    print(tumor_cells.shape, normal_cells.shape)
+    plot_BIC(cluster_0, output, '0')
+    plot_BIC(cluster_1, output, '1')
     
-    n_components = np.arange(1,10)
-    models = [GaussianMixture(n, covariance_type='full', random_state=0, 
-        n_init=5, max_iter=1000).fit(tumor_cells) for n in n_components]
+    
 
-    plt.plot(n_components, [m.bic(X) for m in models], label='BIC')
-    plt.legend(loc='best')
-    plt.xlabel('n_components');
-    plt.show()
-    import pdb;pdb.set_trace()
 
-    models_normal = [GaussianMixture(n, covariance_type='full', random_state=0, 
-        n_init=5, max_iter=1000).fit(normal_cells) for n in n_components]
-
-    plt.plot(n_components, [m.bic(X) for m in models_normal], label='BIC')
-    plt.legend(loc='best')
-    plt.xlabel('n_components');
-    plt.show()
 
 if __name__ == '__main__':
     main()
