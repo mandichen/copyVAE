@@ -158,9 +158,12 @@ def plot_accuracies(df, output):
     '-ed', '--expression_data', default='', help='input data to the VAE'
 )
 @click.option(
+    '-np', '--normals_path', default='', help='input normals from copykat idea'
+)
+@click.option(
     '-o', '--output', default='', help='output folder'
 )
-def main(data, data_copykat, expression_data, output):
+def main(data, data_copykat, expression_data, normals_path, output):
 
     X = np.load(data)
     normal = np.ones(379)
@@ -208,6 +211,18 @@ def main(data, data_copykat, expression_data, output):
         ['copyVAE', 'copyVAE', 'copykat', 'copykat']]).T
 
     plot_accuracies(df_to_plot, output)
+
+    normal_ck = pd.read_csv(normals_path, sep='\t')
+    exp_data.reset_index(inplace=True)
+    exp_data.set_index('Unnamed: 0', inplace=True)
+    normal_cells = exp_data.loc[normal_ck['x'].tolist()]
+    clust_and_norms = dict(Counter(yhat[normal_cells['index'].tolist()]))
+
+    import operator
+    print('Cluster {} contains the normal cells'.format(
+        max(clust_and_norms.items(), key=operator.itemgetter(1))[0]
+    ))
+    # import pdb;pdb.set_trace()
 
     
 
