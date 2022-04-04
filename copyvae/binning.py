@@ -3,6 +3,7 @@
 import numpy as np
 import pandas as pd
 import scanpy as sc
+import anndata
 from os import path
 from copyvae.preprocess import annotate_data
 
@@ -144,12 +145,12 @@ def bin_genes_from_anndata(file, bin_size, gene_metadata=GENE_META):
         chrom_list: list of chromosome boundry bins
     """
 
-    adata = sc.read_10x_h5(file)
-    #adata = sc.read(file)
+    #adata = sc.read_10x_h5(file)
+    adata = anndata.read_h5ad(file)
     gene_map = build_gene_map(gene_metadata)
 
     # normalize UMI counts
-    sc.pp.filter_cells(adata, min_genes=1000)
+    #sc.pp.filter_cells(adata, min_genes=1000)
     sc.pp.normalize_total(adata, inplace=True)
     adata.X = np.round(adata.X)
 
@@ -167,7 +168,7 @@ def bin_genes_from_anndata(file, bin_size, gene_metadata=GENE_META):
     adata_clean.var['abspos'] = gene_df['abspos'].values
 
     # filter out low expressed genes
-    sc.pp.filter_genes(adata_clean, min_cells=100)
+    sc.pp.filter_genes(adata_clean, min_cells=1)
     # remove exceeded genes
     n_exceeded = adata_clean.var['chr'].value_counts() % bin_size
     ind_list = []

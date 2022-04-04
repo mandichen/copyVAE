@@ -83,12 +83,18 @@ def annotate_data(data, abs_pos):
 
     clusters = np.asarray(data['cluster.pred'], dtype=str)
     cell_types, labels = np.unique(clusters, return_inverse=True)
-    data_df = data.iloc[:,:-1]
-    adata = anndata.AnnData(X=data_df)
-    adata.var['name'] = data.columns.values[1:]
+    data_df = data.iloc[:,:-1].astype(int)
+    # normalization
+    total_counts = data_df.sum(axis=1)
+    m_total = total_counts.median(axis=0)
+    data_arr = data_df.values
+    new_arr = (data_arr.T/total_counts.values * m_total).T
+    adata = anndata.AnnData(X=np.round(new_arr))
+    adata.var['name'] = data.columns.values[:-1]
     adata.var['abspos'] = abs_pos
     adata.obs["labels"] = labels
     adata.obs["cell_type"] = clusters
+    adata.obs['barcode'] = data.index.values
 
     return adata
 

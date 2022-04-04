@@ -25,7 +25,7 @@ class Clone:
 
         k = self.clone_size
         n = np.shape(self.cell_bin_cn)[1]
-        beta = 0.45 * k * np.log(n)
+        beta = 0.5 * k * np.log(n)
         bp_arr = np.array([])
 
         for tup in self.chrom_bound:
@@ -59,3 +59,35 @@ class Clone:
                             self.cell_gene_cn[cell, end_p * self.bin_size:]
                             ).mode
         self.segment_cn = np.mean(seg_array, axis=0)
+
+"""
+from copyvae.binning import bin_genes_from_text 
+from copyvae.segmentation import bin_to_segment
+from copyvae.graphics import draw_heatmap
+
+gene_cn = np.load('cn_per_gene.npy')
+bin_cn = np.load('cn_per_bin.npy')
+binned_genes, chroms = bin_genes_from_text('../data/copykat_data/txt_files/GSM4476485_combined_UMIcount_CellTypes_DCIS1.txt', 25)
+
+t_clone = Clone(1,
+                    1021,
+                    25,
+                    cell_gene_cn=gene_cn[379:,:],
+                    cell_bin_cn=bin_cn[379:,:],
+                    chrom_bound=chroms
+                    )
+
+t_clone.call_breakpoints()
+t_clone.generate_profile()
+clone_seg = t_clone.segment_cn
+#print(clone_seg)
+clone_gene_cn = np.repeat(clone_seg, 25)
+with open('clone_gene_cn.npy', 'wb') as f:
+    np.save(f, clone_gene_cn)
+
+bp_arr = t_clone.breakpoints
+seg_profile = bin_to_segment(bin_cn, bp_arr)
+with open('segments.npy', 'wb') as f:
+        np.save(f, seg_profile)
+draw_heatmap(seg_profile, "tumour_seg")
+"""

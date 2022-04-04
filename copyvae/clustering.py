@@ -5,7 +5,7 @@ from sklearn.cluster import KMeans, DBSCAN
 from sklearn.mixture import GaussianMixture
 
 
-def find_clones_gmm(latent_data, expression_data, n_clones=2):
+def find_clones_gmm(latent_data, expression_data=None, n_clones=4):
     """ GMM find tumour clone
 
     Args:
@@ -20,6 +20,8 @@ def find_clones_gmm(latent_data, expression_data, n_clones=2):
     gmm = GaussianMixture(n_components=n_clones, n_init=5, max_iter=100000)
     gmm.fit(latent_data)
     pred_label = gmm.predict(latent_data)
+
+    return pred_label
 
     # define tumour clones
     mask = (pred_label).astype(bool)

@@ -11,7 +11,7 @@ def draw_heatmap(data_arr, file_name):
                             cmap=sns.blend_palette(['#7CAACD','white', '#CB6527'],
                             as_cmap=True)).get_figure()
     fig.savefig('figures/{}.png'.format(file_name))
-
+    plt.clf()
     return None
 
 
