@@ -5,64 +5,10 @@ import pandas as pd
 import scanpy as sc
 import anndata
 from os import path
-from copyvae.preprocess import annotate_data
-
-LOCAL_DIRECTORY = path.dirname(path.abspath(__file__))
-GENE_META = path.join(LOCAL_DIRECTORY, '../data/mart_export.txt')
-
-CHR_BASE_PAIRS = np.array([
-    248956422,
-    242193529,
-    198295559,
-    190214555,
-    181538259,
-    170805979,
-    159345973,
-    145138636,
-    138394717,
-    133797422,
-    135086622,
-    133275309,
-    114364328,
-    107043718,
-    101991189,
-    90338345,
-    83257441,
-    80373285,
-    58617616,
-    64444167,
-    46709983,
-    50818468,
-    156040895])
+from copyvae.preprocess import annotate_data, build_gene_map
 
 
-def build_gene_map(gene_metadata=GENE_META, chr_pos=CHR_BASE_PAIRS):
-    """ Build gene map from meta data
-
-    """
-    gene_info = pd.read_csv(gene_metadata, sep='\t')
-    gene_info.rename(columns={'Chromosome/scaffold name': 'chr'}, inplace=True)
-
-    gene_info.loc[gene_info.chr == 'X', 'chr'] = '23'
-    gene_info = gene_info[
-        gene_info['chr'].isin(
-            np.arange(1, 24).astype(str)
-        )
-    ]
-    gene_info = gene_info.copy()
-    gene_info.loc[:, 'chr'] = gene_info.chr.astype(int)
-    gene_info = gene_info.sort_values(by=['chr', 'Gene start (bp)'])
-
-    gene_map = gene_info[gene_info['Gene type']=='protein_coding'].copy()
-    #gene_map = gene_info
-    gene_map['abspos'] = gene_map['Gene start (bp)']
-    for i in range(len(chr_pos)):
-        gene_map.loc[gene_map['chr'] == i + 1, 'abspos'] += chr_pos[:i].sum()
-
-    return gene_map
-
-
-def bin_genes_from_text(umi_counts, bin_size, gene_metadata=GENE_META):
+def bin_genes_from_text(umi_counts, bin_size, gene_metadata):
     """ Gene binning for UMI counts from text file
 
     Args:
@@ -131,7 +77,7 @@ def bin_genes_from_text(umi_counts, bin_size, gene_metadata=GENE_META):
     return data, chrom_list
 
 
-def bin_genes_from_anndata(file, bin_size, gene_metadata=GENE_META):
+def bin_genes_from_anndata(file, bin_size, gene_metadata):
     """ Gene binning for UMI counts for 10X data
 
     Args:
